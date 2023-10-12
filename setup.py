@@ -12,10 +12,10 @@ setup(
     packages=['safety_gym'],
     install_requires=[
         'Cython==0.29.36',
-        'gymnasium==0.29.1',
-        'joblib~=0.14.0',
-        'mujoco_py==2.1.2.14',
-        'numpy==1.24.4',
-        'xmltodict==0.13.0',
+        'gymnasium>=0.29',
+        'joblib>=0.14',
+        'mujoco_py>=2.1.2.14',
+        'numpy>=1.24',
+        'xmltodict>=0.13',
     ],
 )
