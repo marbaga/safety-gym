@@ -2,7 +2,7 @@
 
 import unittest
 import numpy as np
-import gym.spaces
+import gymnasium.spaces
 
 from safety_gym.envs.engine import Engine
 
@@ -22,14 +22,14 @@ class TestEngine(unittest.TestCase):
     def test_flatten(self):
         ''' Test that physics can flatten observations '''
         p = Engine({'observation_flatten': True})
-        obs = p.reset()
-        self.assertIsInstance(p.observation_space, gym.spaces.Box)
+        obs, _ = p.reset()
+        self.assertIsInstance(p.observation_space, gymnasium.spaces.Box)
         self.assertEqual(len(p.observation_space.shape), 1)
         self.assertTrue(p.observation_space.contains(obs))
 
         p = Engine({'observation_flatten': False})
-        obs = p.reset()
-        self.assertIsInstance(p.observation_space, gym.spaces.Dict)
+        obs, _ = p.reset()
+        self.assertIsInstance(p.observation_space, gymnasium.spaces.Dict)
         self.assertTrue(p.observation_space.contains(obs))
 
     def test_angle_components(self):

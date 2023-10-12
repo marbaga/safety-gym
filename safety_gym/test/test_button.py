@@ -15,7 +15,8 @@ class TestButton(unittest.TestCase):
         got_goal = False
         done = False
         while not done:
-            _, _, done, info = env.step([1, 0])
+            _, _, terminated, truncated, info = env.step([1, 0])
+            done = terminated or truncated
             if 'goal_met' in info:
                 got_goal = True
         if gets_goal:
@@ -35,7 +36,7 @@ class TestButton(unittest.TestCase):
             'constrain_indicator': True,
             'robot_locations': [(-1, 0)],
             'robot_rot': 0,
-            '_seed': 0,
+            '_seed': 42,
         }
         # Correct button is pressed, nothing afterwards
         env = Engine(config)

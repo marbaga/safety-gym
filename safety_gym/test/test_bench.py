@@ -3,8 +3,7 @@
 import re
 import unittest
 import numpy as np
-import gym
-import gym.spaces
+import gymnasium as gym
 
 from safety_gym.envs.engine import Engine
 
@@ -28,8 +27,8 @@ class TestBench(unittest.TestCase):
         for _ in range(999):
             act = np.zeros(env.action_space.shape)
             act[0] = 1
-            _, reward, done, info = env.step(act)
-            self.assertFalse(done)
+            _, reward, terminated, truncated, info = env.step(act)
+            self.assertFalse(terminated or truncated)
             # If we have not yet got the goal
             if not goal_met:
                 # Reward should be positive, since we're moving towards it.
@@ -67,7 +66,7 @@ class TestBench(unittest.TestCase):
         for _ in range(999):
             act = np.zeros(env.action_space.shape)
             act[0] = 1
-            _, reward, done, info = env.step(act)
+            _, reward, terminated, truncated, info = env.step(act)
             if not hazard_found:
                 if info['cost']:
                     hazard_found = True
@@ -96,7 +95,7 @@ class TestBench(unittest.TestCase):
             'vases_velocity_cost': 1.0,
             'robot_locations': [(0, 0)],
             'robot_rot': 0,
-            '_seed': 0,
+            '_seed': 42,
         }
         env = Engine(config)
         env.reset()
@@ -105,7 +104,7 @@ class TestBench(unittest.TestCase):
         for _ in range(999):
             act = np.zeros(env.action_space.shape)
             act[0] = 1
-            _, reward, done, info = env.step(act)
+            _, reward, terminated, truncated, info = env.step(act)
             if not vase_found:
                 if info['cost']:
                     vase_found = True
@@ -165,7 +164,7 @@ class TestBench(unittest.TestCase):
     def test_correct_lidar(self):
         ''' We should have lidar for every object in the env '''
         matched = []
-        for env_spec in gym.envs.registry.all():
+        for env_spec in gym.envs.registry.values():
             #if re.match(r'Safexp-.*-v0', env_spec.id) is not None:
             if 'Safexp' in env_spec.id and not('Vision' in env_spec.id):
                 matched.append(env_spec.id)

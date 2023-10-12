@@ -11,7 +11,8 @@ class TestGoal(unittest.TestCase):
         ''' roll an environment until it is done '''
         done = False
         while not done:
-            _, _, done, _ = env.step([1,0])
+            _, _, terminated, truncated, _ = env.step([1,0])
+            done = terminated or truncated
 
     def test_resample(self):
         ''' Episode should end with resampling failure '''

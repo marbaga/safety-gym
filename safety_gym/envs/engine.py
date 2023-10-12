@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
-import gym
-import gym.spaces
+import gymnasium as gym
 import numpy as np
 from PIL import Image
 from copy import deepcopy
@@ -313,7 +312,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         self.world = None
         self.clear()
 
-        self.seed(self._seed)
+        self._seed = np.random.randint(2**32) if self._seed is None else self._seed
         self.done = True
 
     def parse(self, config):
@@ -398,29 +397,29 @@ class Engine(gym.Env, gym.utils.EzPickle):
         obs_space_dict = OrderedDict()  # See self.obs()
 
         if self.observe_freejoint:
-            obs_space_dict['freejoint'] = gym.spaces.Box(-np.inf, np.inf, (7,), dtype=np.float32)
+            obs_space_dict['freejoint'] = gym.spaces.Box(-np.inf, np.inf, (7,), dtype=np.float64)
         if self.observe_com:
-            obs_space_dict['com'] = gym.spaces.Box(-np.inf, np.inf, (3,), dtype=np.float32)
+            obs_space_dict['com'] = gym.spaces.Box(-np.inf, np.inf, (3,), dtype=np.float64)
         if self.observe_sensors:
             for sensor in self.sensors_obs:  # Explicitly listed sensors
                 dim = self.robot.sensor_dim[sensor]
-                obs_space_dict[sensor] = gym.spaces.Box(-np.inf, np.inf, (dim,), dtype=np.float32)
+                obs_space_dict[sensor] = gym.spaces.Box(-np.inf, np.inf, (dim,), dtype=np.float64)
             # Velocities don't have wraparound effects that rotational positions do
             # Wraparounds are not kind to neural networks
             # Whereas the angle 2*pi is very close to 0, this isn't true in the network
             # In theory the network could learn this, but in practice we simplify it
             # when the sensors_angle_components switch is enabled.
             for sensor in self.robot.hinge_vel_names:
-                obs_space_dict[sensor] = gym.spaces.Box(-np.inf, np.inf, (1,), dtype=np.float32)
+                obs_space_dict[sensor] = gym.spaces.Box(-np.inf, np.inf, (1,), dtype=np.float64)
             for sensor in self.robot.ballangvel_names:
-                obs_space_dict[sensor] = gym.spaces.Box(-np.inf, np.inf, (3,), dtype=np.float32)
+                obs_space_dict[sensor] = gym.spaces.Box(-np.inf, np.inf, (3,), dtype=np.float64)
             # Angular positions have wraparound effects, so output something more friendly
             if self.sensors_angle_components:
                 # Single joints are turned into sin(x), cos(x) pairs
                 # These should be easier to learn for neural networks,
                 # Since for angles, small perturbations in angle give small differences in sin/cos
                 for sensor in self.robot.hinge_pos_names:
-                    obs_space_dict[sensor] = gym.spaces.Box(-np.inf, np.inf, (2,), dtype=np.float32)
+                    obs_space_dict[sensor] = gym.spaces.Box(-np.inf, np.inf, (2,), dtype=np.float64)
                 # Quaternions are turned into 3x3 rotation matrices
                 # Quaternions have a wraparound issue in how they are normalized,
                 # where the convention is to change the sign so the first element to be positive.
@@ -432,57 +431,57 @@ class Engine(gym.Env, gym.utils.EzPickle):
                 # but right now we have very little code to support SO(3) roatations.
                 # Instead we use a 3x3 rotation matrix, which if normalized, smoothly varies as well.
                 for sensor in self.robot.ballquat_names:
-                    obs_space_dict[sensor] = gym.spaces.Box(-np.inf, np.inf, (3, 3), dtype=np.float32)
+                    obs_space_dict[sensor] = gym.spaces.Box(-np.inf, np.inf, (3, 3), dtype=np.float64)
             else:
                 # Otherwise include the sensor without any processing
                 # TODO: comparative study of the performance with and without this feature.
                 for sensor in self.robot.hinge_pos_names:
-                    obs_space_dict[sensor] = gym.spaces.Box(-np.inf, np.inf, (1,), dtype=np.float32)
+                    obs_space_dict[sensor] = gym.spaces.Box(-np.inf, np.inf, (1,), dtype=np.float64)
                 for sensor in self.robot.ballquat_names:
-                    obs_space_dict[sensor] = gym.spaces.Box(-np.inf, np.inf, (4,), dtype=np.float32)
+                    obs_space_dict[sensor] = gym.spaces.Box(-np.inf, np.inf, (4,), dtype=np.float64)
         if self.task == 'push':
             if self.observe_box_comp:
-                obs_space_dict['box_compass'] = gym.spaces.Box(-1.0, 1.0, (self.compass_shape,), dtype=np.float32)
+                obs_space_dict['box_compass'] = gym.spaces.Box(-1.0, 1.0, (self.compass_shape,), dtype=np.float64)
             if self.observe_box_lidar:
-                obs_space_dict['box_lidar'] = gym.spaces.Box(0.0, 1.0, (self.lidar_num_bins,), dtype=np.float32)
+                obs_space_dict['box_lidar'] = gym.spaces.Box(0.0, 1.0, (self.lidar_num_bins,), dtype=np.float64)
         if self.observe_goal_dist:
-            obs_space_dict['goal_dist'] = gym.spaces.Box(0.0, 1.0, (1,), dtype=np.float32)
+            obs_space_dict['goal_dist'] = gym.spaces.Box(0.0, 1.0, (1,), dtype=np.float64)
         if self.observe_goal_comp:
-            obs_space_dict['goal_compass'] = gym.spaces.Box(-1.0, 1.0, (self.compass_shape,), dtype=np.float32)
+            obs_space_dict['goal_compass'] = gym.spaces.Box(-1.0, 1.0, (self.compass_shape,), dtype=np.float64)
         if self.observe_goal_lidar:
-            obs_space_dict['goal_lidar'] = gym.spaces.Box(0.0, 1.0, (self.lidar_num_bins,), dtype=np.float32)
+            obs_space_dict['goal_lidar'] = gym.spaces.Box(0.0, 1.0, (self.lidar_num_bins,), dtype=np.float64)
         if self.task == 'circle' and self.observe_circle:
-            obs_space_dict['circle_lidar'] = gym.spaces.Box(0.0, 1.0, (self.lidar_num_bins,), dtype=np.float32)
+            obs_space_dict['circle_lidar'] = gym.spaces.Box(0.0, 1.0, (self.lidar_num_bins,), dtype=np.float64)
         if self.observe_remaining:
-            obs_space_dict['remaining'] = gym.spaces.Box(0.0, 1.0, (1,), dtype=np.float32)
+            obs_space_dict['remaining'] = gym.spaces.Box(0.0, 1.0, (1,), dtype=np.float64)
         if self.walls_num and self.observe_walls:
-            obs_space_dict['walls_lidar'] = gym.spaces.Box(0.0, 1.0, (self.lidar_num_bins,), dtype=np.float32)
+            obs_space_dict['walls_lidar'] = gym.spaces.Box(0.0, 1.0, (self.lidar_num_bins,), dtype=np.float64)
         if self.observe_hazards:
-            obs_space_dict['hazards_lidar'] = gym.spaces.Box(0.0, 1.0, (self.lidar_num_bins,), dtype=np.float32)
+            obs_space_dict['hazards_lidar'] = gym.spaces.Box(0.0, 1.0, (self.lidar_num_bins,), dtype=np.float64)
         if self.observe_vases:
-            obs_space_dict['vases_lidar'] = gym.spaces.Box(0.0, 1.0, (self.lidar_num_bins,), dtype=np.float32)
+            obs_space_dict['vases_lidar'] = gym.spaces.Box(0.0, 1.0, (self.lidar_num_bins,), dtype=np.float64)
         if self.gremlins_num and self.observe_gremlins:
-            obs_space_dict['gremlins_lidar'] = gym.spaces.Box(0.0, 1.0, (self.lidar_num_bins,), dtype=np.float32)
+            obs_space_dict['gremlins_lidar'] = gym.spaces.Box(0.0, 1.0, (self.lidar_num_bins,), dtype=np.float64)
         if self.pillars_num and self.observe_pillars:
-            obs_space_dict['pillars_lidar'] = gym.spaces.Box(0.0, 1.0, (self.lidar_num_bins,), dtype=np.float32)
+            obs_space_dict['pillars_lidar'] = gym.spaces.Box(0.0, 1.0, (self.lidar_num_bins,), dtype=np.float64)
         if self.buttons_num and self.observe_buttons:
-            obs_space_dict['buttons_lidar'] = gym.spaces.Box(0.0, 1.0, (self.lidar_num_bins,), dtype=np.float32)
+            obs_space_dict['buttons_lidar'] = gym.spaces.Box(0.0, 1.0, (self.lidar_num_bins,), dtype=np.float64)
         if self.observe_qpos:
-            obs_space_dict['qpos'] = gym.spaces.Box(-np.inf, np.inf, (self.robot.nq,), dtype=np.float32)
+            obs_space_dict['qpos'] = gym.spaces.Box(-np.inf, np.inf, (self.robot.nq,), dtype=np.float64)
         if self.observe_qvel:
-            obs_space_dict['qvel'] = gym.spaces.Box(-np.inf, np.inf, (self.robot.nv,), dtype=np.float32)
+            obs_space_dict['qvel'] = gym.spaces.Box(-np.inf, np.inf, (self.robot.nv,), dtype=np.float64)
         if self.observe_ctrl:
-            obs_space_dict['ctrl'] = gym.spaces.Box(-np.inf, np.inf, (self.robot.nu,), dtype=np.float32)
+            obs_space_dict['ctrl'] = gym.spaces.Box(-np.inf, np.inf, (self.robot.nu,), dtype=np.float64)
         if self.observe_vision:
             width, height = self.vision_size
             rows, cols = height, width
             self.vision_size = (rows, cols)
-            obs_space_dict['vision'] = gym.spaces.Box(0, 1.0, self.vision_size + (3,), dtype=np.float32)
+            obs_space_dict['vision'] = gym.spaces.Box(0, 1.0, self.vision_size + (3,), dtype=np.float64)
         # Flatten it ourselves
         self.obs_space_dict = obs_space_dict
         if self.observation_flatten:
             self.obs_flat_size = sum([np.prod(i.shape) for i in self.obs_space_dict.values()])
-            self.observation_space = gym.spaces.Box(-np.inf, np.inf, (self.obs_flat_size,), dtype=np.float32)
+            self.observation_space = gym.spaces.Box(-np.inf, np.inf, (self.obs_flat_size,), dtype=np.float64)
         else:
             self.observation_space = gym.spaces.Dict(obs_space_dict)
 
@@ -546,14 +545,10 @@ class Engine(gym.Env, gym.utils.EzPickle):
 
         self.placements = placements
 
-    def seed(self, seed=None):
-        ''' Set internal random state seeds '''
-        self._seed = np.random.randint(2**32) if seed is None else seed
-
     def build_layout(self):
         ''' Rejection sample a placement of objects to find a layout. '''
         if not self.randomize_layout:
-            self.rs = np.random.RandomState(0)
+            self._np_random = np.random.RandomState(0)
 
         for _ in range(10000):
             if self.sample_layout():
@@ -628,13 +623,13 @@ class Engine(gym.Env, gym.utils.EzPickle):
             else:
                 areas = [(x2 - x1)*(y2 - y1) for x1, y1, x2, y2 in constrained]
                 probs = np.array(areas) / np.sum(areas)
-                choice = constrained[self.rs.choice(len(constrained), p=probs)]
+                choice = constrained[self._np_random.choice(len(constrained), p=probs)]
         xmin, ymin, xmax, ymax = choice
-        return np.array([self.rs.uniform(xmin, xmax), self.rs.uniform(ymin, ymax)])
+        return np.array([self._np_random.uniform(xmin, xmax), self._np_random.uniform(ymin, ymax)])
 
     def random_rot(self):
         ''' Use internal random state to get a random rotation in radians '''
-        return self.rs.uniform(0, 2 * np.pi)
+        return self._np_random.uniform(0, 2 * np.pi)
 
     def build_world_config(self):
         ''' Create a world_config from our own config '''
@@ -841,7 +836,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
 
     def build_goal_button(self):
         ''' Pick a new goal button, maybe with resampling due to hazards '''
-        self.goal_button = self.rs.choice(self.buttons_num)
+        self.goal_button = self._np_random.choice(self.buttons_num)
 
     def build(self):
         ''' Build a new physics simulation environment '''
@@ -867,10 +862,11 @@ class Engine(gym.Env, gym.utils.EzPickle):
         # Save last subtree center of mass
         self.last_subtreecom = self.world.get_sensor('subtreecom')
 
-    def reset(self):
+    def reset(self, seed=None, options=None):
         ''' Reset the physics simulation and return observation '''
+        self._seed = seed if seed is not None else self._seed
         self._seed += 1  # Increment seed
-        self.rs = np.random.RandomState(self._seed)
+        super().reset(seed=self._seed)
         self.done = False
         self.steps = 0  # Count of steps taken in this episode
         # Set the button timer to zero (so button is immediately visible)
@@ -888,7 +884,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         self.first_reset = False  # Built our first world successfully
 
         # Return an observation
-        return self.obs()
+        return self.obs(), {}
 
     def dist_goal(self):
         ''' Return the distance from the robot to the goal XY position '''
@@ -1016,7 +1012,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
             pos = np.asarray(pos)
             if pos.shape == (3,):
                 pos = pos[:2]  # Truncate Z coordinate
-            z = np.complex(*self.ego_xy(pos))  # X, Y as real, imaginary components
+            z = complex(*self.ego_xy(pos))  # X, Y as real, imaginary components
             dist = np.abs(z)
             angle = np.angle(z) % (np.pi * 2)
             bin_size = (np.pi * 2) / self.lidar_num_bins
@@ -1238,6 +1234,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         ''' Take a step and return observation, reward, done, and info '''
         action = np.array(action, copy=False)  # Cast to ndarray
         assert not self.done, 'Environment must be reset before stepping'
+        terminated, truncated = False, False
 
         info = {}
 
@@ -1246,11 +1243,11 @@ class Engine(gym.Env, gym.utils.EzPickle):
         # action_scale = action_range[:,1] - action_range[:, 0]
         self.data.ctrl[:] = np.clip(action, action_range[:,0], action_range[:,1]) #np.clip(action * 2 / action_scale, -1, 1)
         if self.action_noise:
-            self.data.ctrl[:] += self.action_noise * self.rs.randn(self.model.nu)
+            self.data.ctrl[:] += self.action_noise * self._np_random.randn(self.model.nu)
 
         # Simulate physics forward
         exception = False
-        for _ in range(self.rs.binomial(self.frameskip_binom_n, self.frameskip_binom_p)):
+        for _ in range(self._np_random.binomial(self.frameskip_binom_n, self.frameskip_binom_p)):
             try:
                 self.set_mocaps()
                 self.sim.step()  # Physics simulation step
@@ -1259,7 +1256,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
                 exception = True
                 break
         if exception:
-            self.done = True
+            terminated = True
             reward = self.reward_exception
             info['cost_exception'] = 1.0
         else:
@@ -1289,19 +1286,20 @@ class Engine(gym.Env, gym.utils.EzPickle):
                             self.build_goal()
                         except ResamplingError as e:
                             # Normal end of episode
-                            self.done = True
+                            terminated = True
                     else:
                         # Try to make a goal, which could raise a ResamplingError exception
                         self.build_goal()
                 else:
-                    self.done = True
+                    terminated = True
 
         # Timeout
         self.steps += 1
         if self.steps >= self.num_steps:
-            self.done = True  # Maximum number of steps in an episode reached
+            truncated = True  # Maximum number of steps in an episode reached
+        self.done = terminated or truncated
 
-        return self.obs(), reward, self.done, info
+        return self.obs(), reward, terminated, truncated, info
 
     def reward(self):
         ''' Calculate the dense component of reward.  Call exactly once per step '''
