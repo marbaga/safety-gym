@@ -243,6 +243,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
         'hazards_keepout': 0.4,  # Radius of hazard keepout for placement
         'hazards_size': 0.3,  # Radius of hazards
         'hazards_cost': 1.0,  # Cost (per step) for violating the constraint
+        'hazards_color': None,  # Color of each hazard
 
         # Vases (objects we should not touch)
         'vases_num': 0,  # Number of vases in the world
@@ -704,17 +705,21 @@ class Engine(gym.Env, gym.utils.EzPickle):
                     'rgba': COLOR_GOAL * [1, 1, 1, 0.25]}  # transparent
             world_config['geoms']['goal'] = geom
         if self.hazards_num:
-            for i in range(self.hazards_num):
+            hazards_size = self.hazards_size if isinstance(self.hazards_size, list) \
+                else [self.hazards_size]*self.hazards_num
+            hazards_color = self.hazards_color if isinstance(self.hazards_color, list) \
+                else [COLOR_HAZARD]*self.hazards_num
+            for i, s, c in zip(range(self.hazards_num), hazards_size, hazards_color):
                 name = f'hazard{i}'
                 geom = {'name': name,
-                        'size': [self.hazards_size, 1e-2],#self.hazards_size / 2],
+                        'size': [s, 1e-2],#self.hazards_size / 2],
                         'pos': np.r_[self.layout[name], 2e-2],#self.hazards_size / 2 + 1e-2],
                         'rot': self.random_rot(),
                         'type': 'cylinder',
                         'contype': 0,
                         'conaffinity': 0,
                         'group': GROUP_HAZARD,
-                        'rgba': COLOR_HAZARD * [1, 1, 1, 0.25]} #0.1]}  # transparent
+                        'rgba': c * [1, 1, 1, 0.25]} #0.1]}  # transparent
                 world_config['geoms'][name] = geom
         if self.pillars_num:
             for i in range(self.pillars_num):
@@ -1172,10 +1177,12 @@ class Engine(gym.Env, gym.utils.EzPickle):
         # Calculate constraint violations
         if self.constrain_hazards:
             cost['cost_hazards'] = 0
-            for h_pos in self.hazards_pos:
+            hazards_size = self.hazards_size if isinstance(self.hazards_size, list) \
+                else [self.hazards_size]*self.hazard_num
+            for h_pos, h_size in zip(self.hazards_pos, hazards_size):
                 h_dist = self.dist_xy(h_pos)
-                if h_dist <= self.hazards_size:
-                    cost['cost_hazards'] += self.hazards_cost * (self.hazards_size - h_dist)
+                if h_dist <= h_size:
+                    cost['cost_hazards'] += self.hazards_cost * (h_size - h_dist)
 
         # Sum all costs into single total cost
         cost['cost'] = sum(v for k, v in cost.items() if k.startswith('cost_'))
